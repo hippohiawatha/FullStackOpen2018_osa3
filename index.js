@@ -3,34 +3,7 @@ const app = express()
 const bodyParser = require("body-parser")
 const morgan = require("morgan")
 const cors = require("cors")
-
-let persons = [
-  {
-    "name": "Arto Hellas",
-    "number": "040-123456",
-    "id": 1
-  },
-  {
-    "name": "Arto Järvinen",
-    "number": "040-123456",
-    "id": 3
-  },
-  {
-    "name": "Lea Kutvonen",
-    "number": "040-123456",
-    "id": 4
-  },
-  {
-    "name": "leo",
-    "number": "1",
-    "id": 8
-  },
-  {
-    "name": "jutta ",
-    "number": "2",
-    "id": 10
-  }
-]
+const Person = require('./models/person')
 
 app.use(express.static('build'))
 app.use(bodyParser.json())
@@ -44,26 +17,30 @@ app.get("/", (req,res) => {
 })
 
 app.get("/api/persons", (req, res) => {
-  res.json(persons)
+  Person.find({}).then(people =>
+    people.map(Person.format)).then(people => res.json(people))
+  })
+
+app.get('/api/persons/:id', (req, res) => {
+  Person.findById(req.params.id).then(Person.format).then(data => res.json(data))
+    .catch(err => {
+      console.log(err)
+      res.status(404).end()
+    })
 })
 
-app.get("/api/persons/:id", (req, res) => {
-  const id = Number(req.params.id)
-  const person = persons.find(person => person.id === id)
-  if(person) res.json(person)
-  else res.status(404).end()
-})
 
 app.get("/info", (req, res) => {
-  const amount = persons.length
-  res.send(`<p>puhelinluettelossa ${amount} ihmisen tiedot</p>
-    <p>${new Date()}</p>`)
+  Person.find({}).then(data =>
+    res.send(`<p>puhelinluettelossa ${data.length} ihmisen tiedot</p>
+    <p>${new Date()}</p>`))
 })
 
 app.delete("/api/persons/:id", (req, res) => {
-  const id = Number(req.params.id)
-  persons = persons.filter(person => person.id !== id)
-  res.status(204).end()
+  Person.findOneAndDelete({
+    _id: req.params.id
+  })
+  .then(() => res.status(204).end())
 })
 
 app.post("/api/persons", (req, res) => {
@@ -74,18 +51,25 @@ app.post("/api/persons", (req, res) => {
     return res.status(400).json({error: "content missing"})
   }
 
-  else if(persons.find(person => person.name === name)){
-    return res.status(400).json({error: "name must be unique"})
-  }
+  Person.find({}).then(people => people.map(Person.format))
+    .then(people => {
+      if(people.some(person => person.name === name)){
+        return res.status(400).json({
+          error: 'name must be unique'
+        })
+      }
+      const person = new Person({
+        name: name,
+        number: num
+      })
+      person.save().then(Person.format).then(person => res.json(person))
+        .catch(error => console.log(error))
+    })
+})
 
-  const person = {
-    name: name,
-    number: num,
-    id: Math.floor(Math.random() * 1001)
-  }
-
-  persons = persons.concat(person)
-  res.json(persons)
+app.put('/api/persons/:id', (req, res) => {
+  Person.findByIdAndUpdate({_id: req.params.id}, req.body, {new: true})
+    .then(Person.format).then(person => res.json(person))
 })
 
 const PORT = process.env.PORT || 3001
