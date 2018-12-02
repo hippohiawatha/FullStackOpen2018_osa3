@@ -1,6 +1,9 @@
 {
   "name": "personbackend",
   "version": "1.0.0",
+  "engines": {
+    "node": "10.4.0"
+  },
   "description": "FullStackOpen2018-osa3",
   "main": "index.js",
   "scripts": {
